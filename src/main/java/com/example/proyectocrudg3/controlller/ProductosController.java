@@ -20,7 +20,9 @@ import java.math.BigDecimal;
 import java.sql.*;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ProductosController {
@@ -891,7 +893,7 @@ public class ProductosController {
                         "Precio incorrecto",
                         "El precio mínimo debe ser numérico."
                 );
-                txtPrecioMin.requestFocus(); // Lleva el cursor al precio mínimo.
+                txtPrecioMinimo.requestFocus(); // Lleva el cursor al precio mínimo.
                 return;                      // Cancela la búsqueda.
             }
         }
@@ -922,7 +924,8 @@ public class ProductosController {
                     mostrarAlerta(
                             Alert.AlertType.WARNING,
                             "Precio incorrecto",
-                            "El precio máximo no puede ser negativo."
+                            "El precio máximo debe ser numérico.",
+                            "Ingresa un número válido para realizar la búsqueda."
                     );
                     return; // Cancela la búsqueda.
                 }
@@ -938,9 +941,10 @@ public class ProductosController {
                 mostrarAlerta(
                         Alert.AlertType.WARNING,
                         "Precio incorrecto",
-                        "El precio máximo debe ser numérico."
+                        "El precio máximo debe ser numérico.",
+                        "Ingresa un número válido para realizar la búsqueda."
                 );
-                txtPrecioMax.requestFocus(); // Lleva el cursor al precio máximo.
+                txtPrecioMaximo.requestFocus(); // Lleva el cursor al precio máximo.
                 return;                      // Cancela la búsqueda.
             }
         }
@@ -964,10 +968,12 @@ public class ProductosController {
             mostrarAlerta(
                     Alert.AlertType.WARNING,
                     "Rango de precios incorrecto",
-                    "El precio mínimo no puede ser mayor que el precio máximo."
+                    "El precio mínimo no puede ser mayor que el precio máximo.",
+                    "Por favor, corrige los valores ingresados para poder filtrar."
             );
             return; // Cancela la búsqueda.
         }
+
 
 
 
@@ -1101,6 +1107,8 @@ public class ProductosController {
 
 
 
+
+
             // Muestra la lista filtrada en la tabla.
             tblProducto.setItems(
                     productos
@@ -1110,7 +1118,8 @@ public class ProductosController {
                 mostrarAlerta(
                         Alert.AlertType.INFORMATION,
                         "Sin resultados",
-                        "No existen productos que coincidan con los filtros aplicados."
+                        "No existen productos que coincidan con los filtros aplicados.",
+                        "Intenta ajustar o limpiar los criterios de búsqueda para ver más registros."
                 );
             }
         } catch (SQLException e) { // Captura errores de la base de datos.
@@ -1121,6 +1130,107 @@ public class ProductosController {
             );
         }
     }
+
+    private void cargarOpcionesOrden() {
+
+        cmbOrdenarFiltro.setItems(
+                FXCollections.observableArrayList(
+                        "Nombre",
+                        "Precio menor a mayor",
+                        "Precio mayor a menor",
+                        "Fecha más reciente",
+                        "Fecha más antigua",
+                        "Stock mayor a menor",
+                        "Stock menor a mayor"
+                )
+        );
+
+        cmbOrdenarFiltro.setValue("Nombre");
+    }
+
+    private Producto crearProductoDesdeResultSet(
+            ResultSet rs
+    ) throws SQLException {
+
+        return new Producto(
+                rs.getInt("id_producto"),            // 1. int (id_producto)
+                rs.getString("codigo"),             // 2. String (codigoProducto)
+                rs.getString("nombre"),             // 3. String (nombreProducto)
+                rs.getString("descripcion"),        // 4. String (descripcionProducto)
+                rs.getString("precio"),             // 5. double (precioProducto)
+                rs.getString("categoria"),          // 6. String (categoria)
+                rs.getDouble("marca"),              // 7. String (marca)
+                rs.getInt("stock"),                 // 8. int (stockProducto)
+                rs.getDate("fecha_creacion"),       // 9. Date (Fecha_ingresoProducto)
+                rs.getInt("id_marca"),              // 10. int (id_marca)
+                rs.getInt("id_categoria"),          // 11. int (id_categoria)
+                rs.getString("nombreCategoria"),    // 12. String (nombreCategoria)
+                rs.getString("nombreMarca"),        // 13. String (nombreMarca)
+                rs.getBoolean("estado")             // 14. boolean (estadoProducto)
+        );
+    }
+
+    private String mensajeDuplicado(SQLException e) {
+        if (e.getMessage() != null && e.getMessage().contains("productos_nombre_key")) {
+            return "Ya existe un producto con ese nombre."; // Se repitió el nombre.
+        }
+        return "El código ingresado ya existe.";             // Se repitió el código.
+    }
+
+    private void cargarProductos() {
+
+        productos.clear();
+
+        String sql = """
+            SELECT
+                p.id_productos,
+                p.codigo,
+                p.nombre,
+                p.descripcion,
+                p.precio,
+                p.stock,
+                p.fecha_creacion,
+                p.id_categoria,
+                c.nombre AS categoria,
+                p.id_marca,
+                m.nombre AS marca,
+                p.estado
+            FROM catalogos.productos p
+            INNER JOIN catalogos.categorias c
+                ON c.id_categorias = p.id_categoria
+            INNER JOIN catalogos.marcas m
+                ON m.id_marca = p.id_marca
+            WHERE p.estado = 1
+            ORDER BY p.nombre
+            """;
+
+        try (
+                Connection conexion =
+                        ConexionBD.getConnection();
+
+                PreparedStatement ps =
+                        conexion.prepareStatement(sql);
+
+                ResultSet rs =
+                        ps.executeQuery()
+        ) {
+
+            while (rs.next()) {
+
+                productos.add(
+                        crearProductoDesdeResultSet(rs)
+                );
+            }
+
+        } catch (SQLException e) {
+
+            mostrarErrorBaseDatos(
+                    "No se pudieron cargar los productos.",
+                    e
+            );
+        }
+    }
+
 
     private void mostrarErrorBaseDatos(String mensaje, SQLException e) {
         Alert alerta = new Alert(Alert.AlertType.ERROR);
@@ -1145,6 +1255,56 @@ public class ProductosController {
         dtpFechaProd.setValue(null);
     }
 
+
+    private void cargarMarcas() {
+
+        marcasIds.clear();
+
+        String sql = """
+            SELECT
+                id_marca,
+                nombre
+            FROM catalogos.marcas
+            WHERE estado = 1
+            ORDER BY nombre
+            """;
+
+        try (
+                Connection conexion =
+                        ConexionBD.getConnection();
+
+                PreparedStatement ps =
+                        conexion.prepareStatement(sql);
+
+                ResultSet rs =
+                        ps.executeQuery()
+        ) {
+
+            while (rs.next()) {
+
+                Marca marca =
+                        new Marca(
+                                rs.getInt("id_marca"),
+                                rs.getString("nombre")
+                        );
+
+                marcasIds.add(rs.getInt("id_marca"));
+            }
+
+            cmbMarcaProd.setItems(
+                    FXCollections.observableArrayList(
+                            marcasIds
+                    )
+            );
+
+        } catch (SQLException e) {
+
+            mostrarErrorBaseDatos(
+                    "No se pudieron cargar las marcas.",
+                    e
+            );
+        }
+    }
 
     @FXML
     private void limpiarFiltros(ActionEvent event) {
