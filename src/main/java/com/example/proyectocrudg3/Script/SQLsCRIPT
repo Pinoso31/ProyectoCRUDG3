@@ -1,0 +1,164 @@
+--creacion de base de datos
+CREATE DATABASE bdventas
+
+-- creacion de esquema general para base de datos
+CREATE SCHEMA catalogo;
+
+--creacion de tabla de marcas
+CREATE TABLE catalogo.marcas
+(
+	id_marca SERIAL PRIMARY KEY,
+	nombre VARCHAR(80) NOT NULL UNIQUE,
+	pais_origen VARCHAR(80) NOT NULL,
+	estado SMALLINT NOT NULL DEFAULT 1
+
+	CONSTRAINT chk_marca_estado
+		CHECK (estado in (0, 1))
+
+);
+
+
+--pruebas para validar los CONSTRAINTS
+--Prueba 1 > no permite valores nulos
+INSERT INTO catalogo.marcas(nombre , pais_origen, estado)
+VALUES(NULL, 'Nicaragua', 1)
+
+--Prueba 2 : no permite que la columna "nombre" tenga el mismo valor 2 veces
+INSERT INTO catalogo.marcas(nombre , pais_origen, estado)
+VALUES('almohada', 'Nicaragua', 1)
+
+--Prueba 3 : agregar el registro por defecto de una fila en la columna de estado
+INSERT INTO catalogo.marcas(nombre , pais_origen)
+VALUES('Audifono', 'Nicaragua')
+
+
+--Tabla 2 : Categorias
+CREATE TABLE catalogo.categorias
+(
+	id_categoria SERIAL PRIMARY KEY,
+	nombre VARCHAR(80) NOT NULL UNIQUE,
+	descripcion VARCHAR(250),
+	estado SMALLINT NOT NULL DEFAULT 1
+
+	CONSTRAINT chk_categoria_estado
+		CHECK (estado in (0, 1))
+);
+
+--Prueba 1 : validar que el nombre debe ser unico
+INSERT INTO catalogo.categorias(nombre , descripcion)
+VALUES('Sistema', 'Hay categoria de sistema')
+
+--Prueba 2 : validar la descripcion de la categoria en NOT null y NULL
+INSERT INTO catalogo.categorias(nombre)
+VALUES('Robot')
+
+-- Prueba 3 : agregar el registro por defecto de una fila en la columna de estado
+INSERT INTO catalogo.categorias(nombre, descripcion)
+VALUES('Electrodomestico', 'Sin estado' )
+
+
+-------- Tabla 3 : Productos ----------------------
+CREATE TABLE catalogo.productos
+(
+	id_producto SERIAL PRIMARY KEY,
+	codigo VARCHAR(20) NOT NULL UNIQUE,
+	nombre VARCHAR(120) NOT NULL UNIQUE,
+	descripcion VARCHAR (200),
+	precio NUMERIC(10, 2) NOT NULL,
+	stock INTEGER NOT NULL DEFAULT 0,
+	fecha_creacion DATE NOT NULL DEFAULT CURRENT_DATE,
+	id_categoria INTEGER NOT NULL,
+	id_marca INTEGER NOT NULL,
+	estado SMALLINT NOT NULL DEFAULT 1,
+
+	CONSTRAINT fk_producto_categoria
+		FOREIGN KEY (id_categoria)
+		REFERENCES catalogo.categorias(id_categoria),
+
+	CONSTRAINT fk_producto_marca
+		FOREIGN KEY (id_marca)
+		REFERENCES catalogo.marcas(id_marca),
+
+	CONSTRAINT chk_producto_precio
+		CHECK (precio > 0),
+
+	CONSTRAINT chk_producto_stock
+		CHECK (stock >= 0),
+
+	CONSTRAINT chk_producto_estado
+		CHECK (estado in (0, 1))
+);
+
+
+--5 registros en catalogo.categorias
+INSERT INTO catalogo.categorias (nombre, descripcion, estado)
+VALUES
+	('Smartphones', 'Teléfonos inteligentes y accesorios', 1),
+	('Televisores', 'Pantallas LED, OLED y Smart TV', 1),
+	('Audio', 'Auriculares, parlantes y equipos de sonido', 1),
+	('Computadoras', 'Laptops, desktops y componentes', 1),
+	('Electrodomésticos', 'Cocina, limpieza y clima', 1)
+
+--5 registros en catalogo.marcas
+
+INSERT INTO catalogo.marcas (nombre, pais_origen, estado)
+VALUES
+	('Samsung', 'Corea del Sur', 1),
+	('Sony', 'Japón', 1),
+	('LG', 'Corea del Sur', 1),
+	('Apple', 'Estados Unidos',1),
+	('Xiaomi', 'China', 1)
+
+
+-- -- 15 PRODUCTOS en catalogo Productos
+INSERT INTO catalogo.productos
+(codigo, nombre, descripcion, precio, stock, id_categoria, id_marca, estado)
+VALUES
+-- Smartphones (categoría 1)
+('SM-S24U',   'Samsung Galaxy S24 Ultra',     'Flagship con S Pen y cámara de 200MP', 5000, 45, 1, 1, 1),
+('IP-15PM',   'iPhone 15 Pro Max',            'Titanio, chip A17 Pro, cámara 48MP',  10000, 30, 1, 4, 1),
+('XM-14T',    'Xiaomi 14T Pro',               'Pantalla AMOLED 144Hz, carga 120W',    200, 60, 1, 5, 1),
+('SO-XPERIA', 'Sony Xperia 1 VI',             'Pantalla 4K OLED, enfoque profesional',5000, 20, 1, 2, 1),
+('LG-VELVET', 'LG Velvet 2',                  'Diseño delgado, cámara dual',          100, 15, 1, 3, 1),
+
+-- Televisores (categoría 2)
+('TV-QN90D',  'Samsung QN90D 65"',            'Neo QLED 4K, 120Hz, Tizen',           10000, 12, 2, 1, 1),
+('TV-A95L',   'Sony Bravia XR A95L 55"',      'OLED QD, Cognitive Processor XR',     10000,  8, 2, 2, 1),
+('TV-C4',     'LG OLED C4 65"',               'OLED evo, webOS, 120Hz',              5000, 10, 2, 3, 1),
+
+-- Audio (categoría 3)
+('AU-WH1000', 'Sony WH-1000XM5',              'Auriculares noise cancelling premium', 200, 50, 3, 2, 1),
+('AU-BUDS3',  'Samsung Galaxy Buds3 Pro',     'Auriculares TWS con ANC',              100, 70, 3, 1, 1),
+('AU-AIRPODS','Apple AirPods Pro 2',          'Cancelación activa, USB-C',            50, 80, 3, 4, 1),
+
+-- Computadoras (categoría 4)
+('PC-MBA15',  'MacBook Air 15" M3',           'Chip M3, 16GB RAM, 512GB SSD',        10000, 25, 4, 4, 1),
+('PC-G15',    'Samsung Galaxy Book4 Pro',     'Intel Ultra 7, pantalla AMOLED',       5000, 18, 4, 1, 1),
+
+-- Electrodomésticos (categoría 5)
+('EL-REF',    'LG InstaView Refrigerator',    'Refrigerador con puerta de cristal',  10000,  7, 5, 3, 1),
+('EL-LAV',    'Xiaomi Washer Pro 10kg',       'Lavadora inteligente con WiFi',        200, 22, 5, 5, 1);
+
+
+--consultas a revisar de la base de datos
+
+--Consulta 1
+SELECT *
+FROM  catalogo.productos
+WHERE precio BETWEEN 20 and 100;
+
+SELECT *
+FROM catalogo.productos
+WHERE precio >= 20 AND precio <=100;
+
+--Consulta 4
+--Buscar los productos cuyos nombres contengan la palabra USB
+SELECT *
+FROM catalogo.productos
+WHERE nombre ILIKE  '%son%';
+
+--Consulta 5
+--Buscar todos los productos cuyo codigo o nombre contenga el texto AU
+SELECT *
+FROM catalogo.productos
+WHERE nombre ILIKE '%AU%' or codigo ILIKE '%AU%';
